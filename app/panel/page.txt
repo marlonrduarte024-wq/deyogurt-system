@@ -1,0 +1,340 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { supabase } from "@/lib/supabase"
+
+export default function Panel() {
+
+const [fecha, setFecha] = useState("")
+const [pedidos, setPedidos] = useState([])
+
+const [resumen, setResumen] = useState({
+totalPedidos:0,
+totalVendido:0,
+pagado:0,
+debe:0
+})
+
+const [produccion,setProduccion] = useState({})
+const [insumos,setInsumos] = useState({})
+
+useEffect(()=>{
+cargarPedidos()
+},[fecha])
+
+async function cargarPedidos(){
+
+let query = supabase
+.from("pedidos")
+.select(`
+id,
+fecha_entrega,
+estado_pago,
+clientes(nombre),
+pedido_items(
+cantidad,
+precio,
+item_id,
+items(
+id,
+nombre
+)
+)
+`)
+.order("fecha_entrega")
+
+if(fecha){
+query = query.eq("fecha_entrega",fecha)
+}
+
+const {data,error} = await query
+
+if(error){
+console.log(error)
+return
+}
+
+const pedidosData = data || []
+
+setPedidos(pedidosData)
+
+calcularResumen(pedidosData)
+calcularProduccion(pedidosData)
+calcularInsumos(pedidosData)
+
+}
+
+function calcularResumen(data){
+
+let totalPedidos = data.length
+let totalVendido = 0
+let pagado = 0
+let debe = 0
+
+data.forEach(p=>{
+
+const total = p.pedido_items.reduce(
+(a,i)=>a+(i.cantidad*i.precio),0
+)
+
+totalVendido += total
+
+if(p.estado_pago=="si"){
+pagado += total
+}else{
+debe += total
+}
+
+})
+
+setResumen({
+totalPedidos,
+totalVendido,
+pagado,
+debe
+})
+
+}
+
+function calcularProduccion(data){
+
+let prod = {}
+
+data.forEach(p=>{
+
+p.pedido_items.forEach(i=>{
+
+const nombre = i.items.nombre
+
+if(!prod[nombre]){
+prod[nombre]=0
+}
+
+prod[nombre]+=Number(i.cantidad)
+
+})
+
+})
+
+setProduccion(prod)
+
+}
+
+async function calcularInsumos(data){
+
+let prodItems = []
+
+data.forEach(p=>{
+p.pedido_items.forEach(i=>{
+prodItems.push({
+item_id:i.item_id,
+cantidad:i.cantidad
+})
+})
+})
+
+if(prodItems.length===0){
+setInsumos({})
+return
+}
+
+const {data:recetas} = await supabase
+.from("item_insumos")
+.select(`
+item_id,
+cantidad,
+insumo_id,
+insumos(nombre)
+`)
+
+let ins = {}
+
+prodItems.forEach(p=>{
+
+(recetas || [])
+.filter(r=>r.item_id==p.item_id)
+.forEach(r=>{
+
+const nombre = r.insumos.nombre
+const total = r.cantidad * p.cantidad
+
+if(!ins[nombre]){
+ins[nombre]=0
+}
+
+ins[nombre]+=Number(total)
+
+})
+
+})
+
+setInsumos(ins)
+
+}
+
+return (
+
+<div className="space-y-6">
+
+<h1 className="text-3xl font-bold">
+Panel de Producción
+</h1>
+
+{/* FILTRO FECHA */}
+
+<input
+type="date"
+className="border p-2 rounded"
+value={fecha}
+onChange={(e)=>setFecha(e.target.value)}
+/>
+
+{/* RESUMEN */}
+
+<div className="grid grid-cols-4 gap-4">
+
+<div className="bg-white p-4 rounded shadow">
+<p className="text-gray-500">Pedidos</p>
+<h2 className="text-xl font-bold">{resumen.totalPedidos}</h2>
+</div>
+
+<div className="bg-white p-4 rounded shadow">
+<p className="text-gray-500">Total vendido</p>
+<h2 className="text-xl font-bold">${resumen.totalVendido}</h2>
+</div>
+
+<div className="bg-white p-4 rounded shadow">
+<p className="text-gray-500">Pagado</p>
+<h2 className="text-xl font-bold text-green-600">${resumen.pagado}</h2>
+</div>
+
+<div className="bg-white p-4 rounded shadow">
+<p className="text-gray-500">Por cobrar</p>
+<h2 className="text-xl font-bold text-red-600">${resumen.debe}</h2>
+</div>
+
+</div>
+
+{/* PEDIDOS */}
+
+<div className="bg-white p-4 rounded shadow">
+
+<h2 className="font-semibold mb-3">
+Pedidos
+</h2>
+
+<table className="w-full">
+
+<thead>
+
+<tr className="border-b">
+<th>Pedido</th>
+<th>Cliente</th>
+<th>Entrega</th>
+<th>Total</th>
+<th>Pago</th>
+</tr>
+
+</thead>
+
+<tbody>
+
+{pedidos.map(p=>{
+
+const total = p.pedido_items.reduce(
+(a,i)=>a+(i.cantidad*i.precio),0
+)
+
+return(
+
+<tr key={p.id} className="border-b">
+
+<td>#{p.id}</td>
+
+<td>{p.clientes?.nombre}</td>
+
+<td>{p.fecha_entrega}</td>
+
+<td>${total}</td>
+
+<td>
+
+{p.estado_pago=="si"?(
+<span className="text-green-600 font-semibold">
+Pagado
+</span>
+):(
+<span className="text-red-600 font-semibold">
+Debe
+</span>
+)}
+
+</td>
+
+</tr>
+
+)
+
+})}
+
+</tbody>
+
+</table>
+
+</div>
+
+{/* PRODUCCION */}
+
+<div className="bg-white p-4 rounded shadow">
+
+<h2 className="font-semibold mb-3">
+Producción necesaria
+</h2>
+
+{Object.entries(produccion).length===0 && (
+<p className="text-gray-500">No hay producción para esta fecha</p>
+)}
+
+{Object.entries(produccion).map(([nombre,cantidad])=>(
+
+<div key={nombre} className="flex justify-between border-b py-1">
+
+<span>{nombre}</span>
+<span>{cantidad}</span>
+
+</div>
+
+))}
+
+</div>
+
+{/* INSUMOS */}
+
+<div className="bg-white p-4 rounded shadow">
+
+<h2 className="font-semibold mb-3">
+Insumos necesarios
+</h2>
+
+{Object.entries(insumos).length===0 && (
+<p className="text-gray-500">No hay insumos calculados</p>
+)}
+
+{Object.entries(insumos).map(([nombre,cantidad])=>(
+
+<div key={nombre} className="flex justify-between border-b py-1">
+
+<span>{nombre}</span>
+<span>{cantidad}</span>
+
+</div>
+
+))}
+
+</div>
+
+</div>
+
+)
+
+}
