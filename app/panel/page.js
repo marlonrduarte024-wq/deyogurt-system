@@ -52,14 +52,12 @@ export default function Panel(){
     }
 
     const {data,error} = await query
-
     if(error){
       console.log(error)
       return
     }
 
     const pedidosData = data || []
-
     setPedidos(pedidosData)
 
     // Filtrar pedidos activos (no completados)
@@ -68,75 +66,49 @@ export default function Panel(){
     calcularResumen(pedidosActivos)
     calcularProduccion(pedidosActivos)
     calcularInsumos(pedidosActivos)
-
   }
 
   function calcularResumen(data){
-
     let totalPedidos = data.length
     let totalVendido = 0
     let pagado = 0
     let debe = 0
 
     data.forEach(p=>{
-
-      const total = p.pedido_items.reduce(
-        (a,i)=>a+(i.cantidad*i.precio),0
-      )
-
+      const total = p.pedido_items.reduce((a,i)=>a+(i.cantidad*i.precio),0)
       const abonado = Number(p.valor_debe || 0)
-
       totalVendido += total
 
       if(p.estado_pago === "si"){
         pagado += total
-      }else{
+      } else {
         pagado += abonado
         const deuda = total - abonado
-        if(deuda > 0){
-          debe += deuda
-        }
+        if(deuda>0) debe += deuda
       }
-
     })
 
-    setResumen({
-      totalPedidos,
-      totalVendido,
-      pagado,
-      debe
-    })
-
+    setResumen({ totalPedidos, totalVendido, pagado, debe })
   }
 
   function calcularProduccion(data){
-
     let prod = {}
-
     data.forEach(p=>{
       p.pedido_items.forEach(i=>{
         const nombre = i.items.nombre
-        if(!prod[nombre]){
-          prod[nombre]=0
-        }
-        prod[nombre]+=Number(i.cantidad)
+        if(!prod[nombre]) prod[nombre] = 0
+        prod[nombre] += Number(i.cantidad)
       })
     })
-
     setProduccion(prod)
-
   }
 
   async function calcularInsumos(data){
-
     let prodItems = []
 
     data.forEach(p=>{
       p.pedido_items.forEach(i=>{
-        prodItems.push({
-          item_id:i.item_id,
-          cantidad:i.cantidad
-        })
+        prodItems.push({ item_id:i.item_id, cantidad:i.cantidad })
       })
     })
 
@@ -155,42 +127,35 @@ export default function Panel(){
       `)
 
     let ins = {}
-
     prodItems.forEach(p=>{
-      (recetas || [])
-        .filter(r=>r.item_id==p.item_id)
-        .forEach(r=>{
-          const nombre = r.insumos.nombre
-          const unidad = r.insumos.unidad
-          const totalCantidad = r.cantidad * p.cantidad
-          const costoUnitario = Number(r.insumos.costo || 0)
-          const totalCosto = totalCantidad * costoUnitario
+      (recetas || []).filter(r=>r.item_id==p.item_id).forEach(r=>{
+        const nombre = r.insumos.nombre
+        const unidad = r.insumos.unidad
+        const totalCantidad = r.cantidad * p.cantidad
+        const costoUnitario = Number(r.insumos.costo || 0)
+        const totalCosto = totalCantidad * costoUnitario
 
-          if(!ins[nombre]){
-            ins[nombre] = { cantidad:0, unidad, costoTotal:0 }
-          }
+        if(!ins[nombre]){
+          ins[nombre] = { cantidad:0, unidad, costoTotal:0 }
+        }
 
-          ins[nombre].cantidad += Number(totalCantidad)
-          ins[nombre].costoTotal += totalCosto
-        })
+        ins[nombre].cantidad += Number(totalCantidad)
+        ins[nombre].costoTotal += totalCosto
+      })
     })
 
     setInsumos(ins)
   }
 
   async function marcarPagado(id){
-
     await supabase
       .from("pedidos")
       .update({ estado_pago:"si", valor_debe:0 })
       .eq("id",id)
-
     cargarPedidos()
-
   }
 
   async function registrarAbono(id){
-
     const valor = Number(abonos[id] || 0)
     if(!valor) return
 
@@ -202,7 +167,7 @@ export default function Panel(){
 
     await supabase
       .from("pedidos")
-      .update({ valor_debe: nuevoAbono, estado_pago: deuda<=0 ? "si":"no" })
+      .update({ valor_debe: nuevoAbono, estado_pago: deuda<=0?"si":"no" })
       .eq("id",id)
 
     setAbonos({...abonos,[id]:""})
@@ -210,14 +175,15 @@ export default function Panel(){
   }
 
   async function cambiarEstado(id,estado){
-
     await supabase
       .from("pedidos")
       .update({ estado:estado })
       .eq("id",id)
-
     cargarPedidos()
   }
+
+  // Fecha de hoy para filtrar completados recientes
+  const hoy = new Date().toISOString().split("T")[0]
 
   return(
     <div className="space-y-6 pb-20">
@@ -233,37 +199,29 @@ export default function Panel(){
 
       {/* RESUMEN */}
       <div className="grid grid-cols-2 gap-3">
-
         <div className="bg-white p-3 rounded shadow">
           <p className="text-gray-500 text-sm">Pedidos</p>
           <h2 className="text-xl font-bold">{resumen.totalPedidos}</h2>
         </div>
-
         <div className="bg-white p-3 rounded shadow">
           <p className="text-gray-500 text-sm">Ventas</p>
           <h2 className="text-xl font-bold">${resumen.totalVendido}</h2>
         </div>
-
         <div className="bg-white p-3 rounded shadow">
           <p className="text-gray-500 text-sm">Pagado</p>
           <h2 className="text-xl font-bold text-green-600">${resumen.pagado}</h2>
         </div>
-
         <div className="bg-white p-3 rounded shadow">
           <p className="text-gray-500 text-sm">Por cobrar</p>
           <h2 className="text-xl font-bold text-red-600">${resumen.debe}</h2>
         </div>
-
       </div>
 
       {/* PEDIDOS ACTIVOS */}
       <div className="space-y-3">
         <h2 className="font-semibold text-lg">Pedidos</h2>
 
-        {pedidos
-          .filter(p => !(p.estado==="entregado" && p.estado_pago==="si"))
-          .map(p=>{
-
+        {pedidos.filter(p=>!(p.estado==="entregado" && p.estado_pago==="si")).map(p=>{
           const total = p.pedido_items.reduce((a,i)=>a+(i.cantidad*i.precio),0)
           const abonado = Number(p.valor_debe || 0)
           const deuda = p.estado_pago === "si" ? 0 : total - abonado
@@ -279,17 +237,17 @@ export default function Panel(){
 
               <button
                 className="text-blue-600 text-sm underline"
-                onClick={() => setPedidoAbierto(pedidoAbierto === p.id ? null : p.id)}
+                onClick={() => setPedidoAbierto(pedidoAbierto===p.id?null:p.id)}
               >
-                {pedidoAbierto === p.id ? "Ocultar pedido" : "Ver pedido"}
+                {pedidoAbierto===p.id?"Ocultar pedido":"Ver pedido"}
               </button>
 
-              {pedidoAbierto === p.id && (
+              {pedidoAbierto===p.id && (
                 <div className="bg-gray-50 p-2 rounded text-sm space-y-1">
                   {p.pedido_items.map((i,index)=>(
                     <div key={index} className="flex justify-between">
                       <span>{i.cantidad} x {i.items.nombre}</span>
-                      <span>${i.cantidad * i.precio}</span>
+                      <span>${i.cantidad*i.precio}</span>
                     </div>
                   ))}
                 </div>
@@ -306,7 +264,7 @@ export default function Panel(){
               </div>
 
               <div className="flex justify-between items-center">
-                <span className={p.estado_pago==="si" ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
+                <span className={p.estado_pago==="si"?"text-green-600 font-semibold":"text-red-600 font-semibold"}>
                   {p.estado_pago==="si"?"Pagado":"Debe"}
                 </span>
 
@@ -333,31 +291,26 @@ export default function Panel(){
                   <button className="bg-green-600 text-white px-3 py-1 rounded" onClick={()=>marcarPagado(p.id)}>Pagado</button>
                 </div>
               )}
-
             </div>
           )
-
         })}
 
       </div>
 
-      {/* PEDIDOS COMPLETADOS */}
+      {/* PEDIDOS COMPLETADOS - solo desde hoy */}
       <div className="space-y-3 mt-6">
-        <h2 className="font-semibold text-lg">Pedidos Completados</h2>
+        <h2 className="font-semibold text-lg">Pedidos Completados (Recientes)</h2>
 
-        {pedidos
-          .filter(p => p.estado==="entregado" && p.estado_pago==="si")
-          .map(p=>(
-            <div key={p.id} className="bg-gray-100 p-4 rounded shadow space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span>Pedido #{p.id}</span>
-                <span>{p.fecha_entrega}</span>
-              </div>
-              <div>Cliente: {p.clientes?.nombre}</div>
-              <div>Total: ${p.pedido_items.reduce((a,i)=>a+i.cantidad*i.precio,0)}</div>
+        {pedidos.filter(p=>p.estado==="entregado" && p.estado_pago==="si" && p.fecha_entrega>=hoy).map(p=>(
+          <div key={p.id} className="bg-gray-100 p-4 rounded shadow space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span>Pedido #{p.id}</span>
+              <span>{p.fecha_entrega}</span>
             </div>
+            <div>Cliente: {p.clientes?.nombre}</div>
+            <div>Total: ${p.pedido_items.reduce((a,i)=>a+i.cantidad*i.precio,0)}</div>
+          </div>
         ))}
-
       </div>
 
       {/* PRODUCCION */}
@@ -386,7 +339,6 @@ export default function Panel(){
               </div>
           ))
         }
-
         {Object.entries(insumos).length>0 && (
           <div className="flex justify-between border-t mt-2 pt-2 font-semibold text-sm">
             <span>Total insumos</span>
