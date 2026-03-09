@@ -86,6 +86,12 @@ export default function Sidebar() {
           >
             👤 Clientes
           </a>
+          <a
+            href="/vendido"
+            className="px-3 py-2 rounded hover:bg-green-100 hover:text-green-700"
+          >
+            💰 Vendido
+          </a>
 
         </nav>
 
