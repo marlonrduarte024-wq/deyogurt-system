@@ -9,7 +9,6 @@ export default function Panel(){
   const [pedidos,setPedidos] = useState([])
   const [abonos,setAbonos] = useState({})
   const [pedidoAbierto,setPedidoAbierto] = useState(null)
-
   const [procesandoPago,setProcesandoPago] = useState(null)
 
   const [resumen,setResumen] = useState({
@@ -242,7 +241,6 @@ export default function Panel(){
 
       {/* RESUMEN */}
       <div className="grid grid-cols-2 gap-3">
-
         <div className="bg-white p-3 rounded shadow">
           <p className="text-gray-500 text-sm">Pedidos</p>
           <h2 className="text-xl font-bold">{resumen.totalPedidos}</h2>
@@ -262,12 +260,10 @@ export default function Panel(){
           <p className="text-gray-500 text-sm">Por cobrar</p>
           <h2 className="text-xl font-bold text-red-600">${resumen.debe}</h2>
         </div>
-
       </div>
 
-      {/* PEDIDOS */}
+      {/* PEDIDOS ACTIVOS */}
       <div className="space-y-3">
-
         <h2 className="font-semibold text-lg">Pedidos</h2>
 
         {pedidos
@@ -305,18 +301,14 @@ export default function Panel(){
               </button>
 
               {pedidoAbierto===p.id && (
-
                 <div className="bg-gray-50 p-2 rounded text-sm space-y-1">
-
                   {p.pedido_items.map((i,index)=>(
                     <div key={index} className="flex justify-between">
                       <span>{i.cantidad} x {i.items.nombre}</span>
                       <span>${i.cantidad*i.precio}</span>
                     </div>
                   ))}
-
                 </div>
-
               )}
 
               <div className="flex justify-between text-sm">
@@ -351,7 +343,6 @@ export default function Panel(){
               </div>
 
               {p.estado_pago!=="si" && (
-
                 <div className="flex gap-2">
 
                   <input
@@ -378,7 +369,6 @@ export default function Panel(){
                   </button>
 
                 </div>
-
               )}
 
             </div>
@@ -386,7 +376,73 @@ export default function Panel(){
           )
 
         })}
+      </div>
 
+      {/* PEDIDOS COMPLETADOS */}
+      <div className="space-y-3 mt-6">
+        <h2 className="font-semibold text-lg">Pedidos Completados (Recientes)</h2>
+
+        {pedidos
+        .filter(p=>p.estado==="entregado" && p.estado_pago==="si" && p.fecha_entrega>=hoy)
+        .map(p=>(
+
+          <div key={p.id} className="bg-gray-100 p-4 rounded shadow space-y-2 text-sm">
+
+            <div className="flex justify-between">
+              <span>Pedido #{p.id}</span>
+              <span>{p.fecha_entrega}</span>
+            </div>
+
+            <div>Cliente: {p.clientes?.nombre}</div>
+
+            <div>
+              Total: ${p.pedido_items.reduce((a,i)=>a+i.cantidad*i.precio,0)}
+            </div>
+
+            {p.fecha_entregado && (
+              <div className="text-green-700 font-semibold text-xs">
+                Entregado el: {p.fecha_entregado}
+              </div>
+            )}
+
+          </div>
+
+        ))}
+      </div>
+
+      {/* PRODUCCION */}
+      <div className="bg-white p-4 rounded shadow">
+        <h2 className="font-semibold mb-2">Producción</h2>
+
+        {Object.entries(produccion).length===0
+        ? <p className="text-gray-500 text-sm">No hay producción</p>
+        : Object.entries(produccion).map(([nombre,cantidad])=>(
+            <div key={nombre} className="flex justify-between border-b py-1 text-sm">
+              <span>{nombre}</span>
+              <span>{cantidad}</span>
+            </div>
+        ))}
+      </div>
+
+      {/* INSUMOS */}
+      <div className="bg-white p-4 rounded shadow">
+        <h2 className="font-semibold mb-2">Insumos necesarios</h2>
+
+        {Object.entries(insumos).length===0
+        ? <p className="text-gray-500 text-sm">No hay insumos calculados</p>
+        : Object.entries(insumos).map(([nombre,data])=>(
+            <div key={nombre} className="flex justify-between border-b py-1 text-sm">
+              <span>{nombre}</span>
+              <span>{data.cantidad} {data.unidad} - ${data.costoTotal.toFixed(2)}</span>
+            </div>
+        ))}
+
+        {Object.entries(insumos).length>0 && (
+          <div className="flex justify-between border-t mt-2 pt-2 font-semibold text-sm">
+            <span>Total insumos</span>
+            <span>${Object.values(insumos).reduce((a,b)=>a+b.costoTotal,0).toFixed(2)}</span>
+          </div>
+        )}
       </div>
 
     </div>
