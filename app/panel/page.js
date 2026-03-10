@@ -47,7 +47,7 @@ export default function Panel(){
           )
         )
       `)
-      .order("fecha_entrega")
+      .order("id", { ascending: true })
 
     if(fecha){
       query = query.eq("fecha_entrega",fecha)
