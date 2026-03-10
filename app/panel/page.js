@@ -10,6 +10,8 @@ export default function Panel(){
   const [abonos,setAbonos] = useState({})
   const [pedidoAbierto,setPedidoAbierto] = useState(null)
 
+  const [procesandoPago,setProcesandoPago] = useState(null)
+
   const [resumen,setResumen] = useState({
     totalPedidos:0,
     totalVendido:0,
@@ -162,10 +164,20 @@ export default function Panel(){
 
   async function marcarPagado(id){
 
+    const confirmar = confirm(`¿El cliente pagó la totalidad del pedido #${id}?`)
+    if(!confirmar) return
+
+    setProcesandoPago(id)
+
     await supabase
       .from("pedidos")
-      .update({ estado_pago:"si", valor_debe:0 })
+      .update({
+        estado_pago:"si",
+        valor_debe:0
+      })
       .eq("id",id)
+
+    setProcesandoPago(null)
 
     cargarPedidos()
   }
@@ -358,10 +370,11 @@ export default function Panel(){
                   </button>
 
                   <button
-                    className="bg-green-600 text-white px-3 py-1 rounded"
+                    className="bg-green-600 text-white px-3 py-1 rounded disabled:opacity-50"
                     onClick={()=>marcarPagado(p.id)}
+                    disabled={procesandoPago===p.id}
                   >
-                    Pagado
+                    {procesandoPago===p.id ? "Guardando..." : "Pagado"}
                   </button>
 
                 </div>
@@ -373,89 +386,6 @@ export default function Panel(){
           )
 
         })}
-
-      </div>
-
-      {/* PEDIDOS COMPLETADOS */}
-      <div className="space-y-3 mt-6">
-
-        <h2 className="font-semibold text-lg">
-          Pedidos Completados (Recientes)
-        </h2>
-
-        {pedidos
-        .filter(p=>p.estado==="entregado" && p.estado_pago==="si" && p.fecha_entrega>=hoy)
-        .map(p=>(
-
-          <div key={p.id} className="bg-gray-100 p-4 rounded shadow space-y-2 text-sm">
-
-            <div className="flex justify-between">
-              <span>Pedido #{p.id}</span>
-              <span>{p.fecha_entrega}</span>
-            </div>
-
-            <div>Cliente: {p.clientes?.nombre}</div>
-
-            <div>
-              Total: ${p.pedido_items.reduce((a,i)=>a+i.cantidad*i.precio,0)}
-            </div>
-
-            {p.fecha_entregado && (
-              <div className="text-green-700 font-semibold text-xs">
-                Entregado el: {p.fecha_entregado}
-              </div>
-            )}
-
-          </div>
-
-        ))}
-
-      </div>
-
-      {/* PRODUCCION */}
-      <div className="bg-white p-4 rounded shadow">
-
-        <h2 className="font-semibold mb-2">Producción</h2>
-
-        {Object.entries(produccion).length===0
-        ? <p className="text-gray-500 text-sm">No hay producción</p>
-        : Object.entries(produccion).map(([nombre,cantidad])=>(
-
-          <div key={nombre} className="flex justify-between border-b py-1 text-sm">
-            <span>{nombre}</span>
-            <span>{cantidad}</span>
-          </div>
-
-        ))}
-
-      </div>
-
-      {/* INSUMOS */}
-      <div className="bg-white p-4 rounded shadow">
-
-        <h2 className="font-semibold mb-2">Insumos necesarios</h2>
-
-        {Object.entries(insumos).length===0
-        ? <p className="text-gray-500 text-sm">No hay insumos calculados</p>
-        : Object.entries(insumos).map(([nombre,data])=>(
-
-          <div key={nombre} className="flex justify-between border-b py-1 text-sm">
-            <span>{nombre}</span>
-            <span>{data.cantidad} {data.unidad} - ${data.costoTotal.toFixed(2)}</span>
-          </div>
-
-        ))}
-
-        {Object.entries(insumos).length>0 && (
-
-          <div className="flex justify-between border-t mt-2 pt-2 font-semibold text-sm">
-            <span>Total insumos</span>
-            <span>
-              ${Object.values(insumos).reduce((a,b)=>a+b.costoTotal,0).toFixed(2)}
-            </span>
-          </div>
-
-        )}
 
       </div>
 
