@@ -1,10 +1,13 @@
+
 "use client"
 
 import { useEffect, useState } from "react"
 import { supabase } from "../../lib/supabase"
+
 export default function Clientes(){
 
 const [clientes,setClientes] = useState([])
+
 const [nuevo,setNuevo] = useState({
 nombre:"",
 telefono:"",
@@ -70,8 +73,6 @@ const {data:pedidos} = await supabase
 .from("pedidos")
 .select(`
 id,
-estado_pago,
-valor_debe,
 pedido_items(
 cantidad,
 precio,
@@ -81,8 +82,7 @@ items(nombre)
 .eq("cliente_id",cliente.id)
 
 let totalPedidos = pedidos?.length || 0
-let pagado = 0
-let debe = 0
+let valorTotal = 0
 let items = {}
 
 pedidos?.forEach(p=>{
@@ -91,10 +91,7 @@ const total = p.pedido_items.reduce(
 (a,i)=>a+(i.cantidad*i.precio),0
 )
 
-const abonado = Number(p.valor_debe || 0)
-
-pagado += abonado
-debe += total - abonado
+valorTotal += total
 
 p.pedido_items.forEach(i=>{
 
@@ -111,19 +108,23 @@ items[nombre]+=Number(i.cantidad)
 })
 
 let favorito = "-"
+let cantidadFavorito = 0
 
 if(Object.keys(items).length){
 
-favorito = Object.entries(items)
-.sort((a,b)=>b[1]-a[1])[0][0]
+const top = Object.entries(items)
+.sort((a,b)=>b[1]-a[1])[0]
+
+favorito = top[0]
+cantidadFavorito = top[1]
 
 }
 
 setResumen({
 totalPedidos,
-pagado,
-debe,
-favorito
+valorTotal,
+favorito,
+cantidadFavorito
 })
 
 }
@@ -290,23 +291,23 @@ Guardar cambios
 </div>
 
 <div>
-<p className="text-gray-500">Pagado</p>
-<p className="font-semibold text-green-600">
-${resumen.pagado}
+<p className="text-gray-500">Valor total pedidos</p>
+<p className="font-semibold text-blue-600">
+${resumen.valorTotal}
 </p>
 </div>
 
 <div>
-<p className="text-gray-500">Debe</p>
-<p className="font-semibold text-red-600">
-${resumen.debe}
-</p>
-</div>
-
-<div>
-<p className="text-gray-500">Favorito</p>
+<p className="text-gray-500">Producto favorito</p>
 <p className="font-semibold">
 {resumen.favorito}
+</p>
+</div>
+
+<div>
+<p className="text-gray-500">Cantidad comprada</p>
+<p className="font-semibold">
+{resumen.cantidadFavorito}
 </p>
 </div>
 
